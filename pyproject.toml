@@ -9,6 +9,7 @@ dependencies = [
     "pandas>=3.0.5",
     "plotly>=6.9.0",
     "streamlit>=1.60.0",
+    "xlsxwriter>=3.2.9",
 ]
 
 [tool.setuptools.packages.find]
@@ -17,3 +18,15 @@ where = ["src"]
 [build-system]
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: sends real emails over SMTP; excluded by default, run with `pytest -m integration`",
+]
+addopts = "-m \"not integration\""
