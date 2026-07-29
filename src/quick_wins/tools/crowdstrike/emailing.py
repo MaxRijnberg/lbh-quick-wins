@@ -74,8 +74,6 @@ def email_units(
             email_template_path,
             {
                 "unit_name": unit_name,
-                "file_name": filename,
-                "row_count": len(df_unit),
                 "sender_name": sender_name,
             },
         )
