@@ -16,7 +16,7 @@ def sample_vulnerabilities_df() -> pd.DataFrame:
     return pd.DataFrame(
         {
             "Hostname": ["ZA-TEST-01", "NL-TEST-02"],
-            "Tags": ["LBH/SouthAfrica", "LBH/Netherlands"],
+            "Tags": ["LBH South Africa", "LBH The Netherlands"],
             "MachineDomain": ["test.co.za", "test.local"],
             "Severity": ["High", "Medium"],
             "CVE": ["CVE-2026-0001", "CVE-2026-0002"],

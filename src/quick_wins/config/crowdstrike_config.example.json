@@ -1,0 +1,23 @@
+// This is an example of the structure which is used as the crowdstrike_config.json
+// At least ONE alias is needed per unit, since it is used in the Regex matching
+// At least ONE email address is needed to send the mail automatically, it will NOT raise an error, but the mail will bounce
+{
+  "LBH-Belgium": {
+    "aliases": ["LBH Belgium", "LBH Antwerp", "LBHBelgium"],
+    "domains": [".be"],
+    "emails": ["test@lbh-group-belgium.be"],
+    "abbreviation": "BE"
+  },
+  "LBH-Brazil": {
+    "aliases": ["LBH Brazil", "LBH BR"],
+    "domains": [".br"],
+    "emails": ["test@lbh-group-brasil.com.br", "test2@lbh-group-brasil.br"],
+    "abbreviation": "BR"
+  },
+  "LBH-Canada": {
+    "aliases": ["LBH Canada"],
+    "domains": [],
+    "emails": ["test@lbh-group-canada.com"],
+    "abbreviation": "CA"
+  }
+}
