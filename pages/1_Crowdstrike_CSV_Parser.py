@@ -19,7 +19,7 @@ CONFIG_DIR = (
 CONFIG_PATH = CONFIG_DIR / "crowdstrike_config.json"
 
 
-EMAIL_TEMPLATE_PATH = CONFIG_DIR / "zip_email.html"
+EMAIL_TEMPLATE_PATH = CONFIG_DIR / "crowdstrike_email.html"
 
 
 def _load_unit_config_cached():
