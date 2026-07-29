@@ -1,0 +1,19 @@
+[project]
+name = "quick-wins"
+version = "0.1.0"
+description = "LBH Group quick wins and automations, wrapped in a Streamlit front-end."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "black>=26.5.1",
+    "pandas>=3.0.5",
+    "plotly>=6.9.0",
+    "streamlit>=1.60.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Data
+data/
+
+# Secrets
+.streamlit/secrets.toml
+
+# Config with email addresses
+src/quick_wins/config/crowdstrike_config.json
