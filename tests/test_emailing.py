@@ -19,7 +19,7 @@ from quick_wins.tools.crowdstrike import df_to_xlsx_bytes, email_units
 from quick_wins.tools.crowdstrike.emailing import send_email_with_xlsx_smtp_html
 from quick_wins.utils.html_render import render_template_html
 
-TEST_RECIPIENT = "XXX@mail.com"  # <-- replace with a real inbox before running
+TEST_RECIPIENT = st.secrets["TEST_RECIPIENT"]
 
 pytestmark = pytest.mark.integration
 
@@ -34,7 +34,9 @@ def _smtp_config() -> dict:
     )
 
 
-def test_send_email_with_xlsx_smtp_html_smoke(sample_vulnerabilities_df, email_template_path):
+def test_send_email_with_xlsx_smtp_html_smoke(
+    sample_vulnerabilities_df, email_template_path
+):
     """Sends one email with an XLSX attachment directly, bypassing unit routing."""
     attachment_bytes = df_to_xlsx_bytes(sample_vulnerabilities_df, sheet_name="Data")
     body_html = render_template_html(
