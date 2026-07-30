@@ -3,7 +3,12 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Pattern, Sequence, Tuple
+from typing import Dict, List, Optional, Pattern, Sequence, Tuple, TypedDict
+
+
+class EmailRecipient(TypedDict):
+    email: str
+    name: str
 from pathlib import Path
 
 import pandas as pd
@@ -14,7 +19,7 @@ class UnitConfig:
     name: str
     aliases: List[str]
     domains: List[str]
-    emails: List[str]
+    emails: List[EmailRecipient]
     abbreviation: str  # required (e.g., "ZA", "NL", "CN")
 
 

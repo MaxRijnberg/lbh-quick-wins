@@ -8,6 +8,7 @@ import streamlit as st
 import pandas as pd
 
 from quick_wins.tools.crowdstrike import df_to_xlsx_bytes
+from quick_wins.tools.crowdstrike.unit_routing import EmailRecipient
 from quick_wins.utils.html_render import render_template_html
 
 
@@ -28,6 +29,7 @@ def send_email_with_xlsx_smtp_html(
     msg["From"] = mail_from
     msg["To"] = ", ".join(mail_to)
     msg["Subject"] = subject
+    msg["BCC"] = "folkert.ringnalda@lbh-group.com"
 
     # HTML body
     msg.set_content("Please see HTML version of this email.")
@@ -50,7 +52,7 @@ def send_email_with_xlsx_smtp_html(
 def email_units(
     *,
     unit_to_df: Dict[str, "pd.DataFrame"],
-    unit_to_emails: Dict[str, List[str]],
+    unit_to_emails: Dict[str, List[EmailRecipient]],
     file_basename: str,
     email_template_path: Path,
 ) -> None:
@@ -62,31 +64,35 @@ def email_units(
     sender_name = st.secrets.get("SENDER_NAME", "Automated Reports")
 
     for unit_name, df_unit in unit_to_df.items():
-        emails = unit_to_emails.get(unit_name, [])
-        if not emails:
+        recipients = unit_to_emails.get(unit_name, [])
+        if not recipients:
             continue
 
         attachment_bytes = df_to_xlsx_bytes(df_unit, sheet_name="Data")
         filename = f"{file_basename}_{unit_name}.xlsx".replace("/", "-")
-
         subject = f"Weekly report - {unit_name}"
-        body_html = render_template_html(
-            email_template_path,
-            {
-                "unit_name": unit_name,
-                "sender_name": sender_name,
-            },
-        )
 
-        send_email_with_xlsx_smtp_html(
-            smtp_host=smtp_host,
-            smtp_port=smtp_port,
-            smtp_username=smtp_username,
-            smtp_password=smtp_password,
-            mail_from=mail_from,
-            mail_to=emails,
-            subject=subject,
-            body_html=body_html,
-            attachment_bytes=attachment_bytes,
-            attachment_filename=filename,
-        )
+        # Sent per-recipient (not combined into one "To" list) since each
+        # recipient has their own {{name}} to personalize the body with.
+        for recipient in recipients:
+            body_html = render_template_html(
+                email_template_path,
+                {
+                    "name": recipient["name"],
+                    "unit_name": unit_name,
+                    "sender_name": sender_name,
+                },
+            )
+
+            send_email_with_xlsx_smtp_html(
+                smtp_host=smtp_host,
+                smtp_port=smtp_port,
+                smtp_username=smtp_username,
+                smtp_password=smtp_password,
+                mail_from=mail_from,
+                mail_to=[recipient["email"]],
+                subject=subject,
+                body_html=body_html,
+                attachment_bytes=attachment_bytes,
+                attachment_filename=filename,
+            )

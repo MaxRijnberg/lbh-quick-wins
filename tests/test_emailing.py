@@ -15,11 +15,14 @@ Requires .streamlit/secrets.toml to hold working SMTP credentials.
 import pytest
 import streamlit as st
 
+from typing import List, Dict
+
 from quick_wins.tools.crowdstrike import df_to_xlsx_bytes, email_units
+from quick_wins.tools.crowdstrike.unit_routing import EmailRecipient
 from quick_wins.tools.crowdstrike.emailing import send_email_with_xlsx_smtp_html
 from quick_wins.utils.html_render import render_template_html
 
-TEST_RECIPIENT = st.secrets["TEST_RECIPIENT"]
+TEST_RECIPIENT: str = st.secrets["TEST_RECIPIENT"]
 
 pytestmark = pytest.mark.integration
 
@@ -42,6 +45,7 @@ def test_send_email_with_xlsx_smtp_html_smoke(
     body_html = render_template_html(
         email_template_path,
         {
+            "name": "Test Recipient",
             "unit_name": "TEST",
             "file_name": "test_report.xlsx",
             "row_count": len(sample_vulnerabilities_df),
@@ -62,7 +66,9 @@ def test_send_email_with_xlsx_smtp_html_smoke(
 def test_email_units_end_to_end(sample_vulnerabilities_df, email_template_path):
     """Runs the same email_units() pipeline the Streamlit page calls, routed to the test address."""
     unit_to_df = {"TEST_UNIT": sample_vulnerabilities_df}
-    unit_to_emails = {"TEST_UNIT": [TEST_RECIPIENT]}
+    unit_to_emails: Dict[str, List[EmailRecipient]] = {
+        "TEST_UNIT": [{"email": TEST_RECIPIENT, "name": "Test Recipient"}]
+    }
 
     email_units(
         unit_to_df=unit_to_df,

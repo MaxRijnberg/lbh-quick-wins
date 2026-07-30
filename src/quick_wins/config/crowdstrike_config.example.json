@@ -5,19 +5,22 @@
   "LBH-Belgium": {
     "aliases": ["LBH Belgium", "LBH Antwerp", "LBHBelgium"],
     "domains": [".be"],
-    "emails": ["test@lbh-group-belgium.be"],
+    "emails": [{"email": "test@lbh-group-belgium.be", "name": "Test Persoon"}],
     "abbreviation": "BE"
   },
   "LBH-Brazil": {
     "aliases": ["LBH Brazil", "LBH BR"],
     "domains": [".br"],
-    "emails": ["test@lbh-group-brasil.com.br", "test2@lbh-group-brasil.br"],
+    "emails": [
+      {"email": "test@lbh-group-brasil.com.br", "name": "Pessoa de teste"}, 
+      {"email": "test2@lbh-group-brasil.br", "name": "Pessoa de teste 2"}
+    ],
     "abbreviation": "BR"
   },
   "LBH-Canada": {
     "aliases": ["LBH Canada"],
     "domains": [],
-    "emails": ["test@lbh-group-canada.com"],
+    "emails": [{"email": "test@lbh-group-canada.com", "name": "Test Person"}],
     "abbreviation": "CA"
   }
 }

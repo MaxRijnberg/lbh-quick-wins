@@ -8,7 +8,7 @@ CONFIG_DIR = Path(__file__).resolve().parent.parent / "src" / "quick_wins" / "co
 
 @pytest.fixture
 def email_template_path() -> Path:
-    return CONFIG_DIR / "zip_email.html"
+    return CONFIG_DIR / "crowdstrike_email.html"
 
 
 @pytest.fixture
