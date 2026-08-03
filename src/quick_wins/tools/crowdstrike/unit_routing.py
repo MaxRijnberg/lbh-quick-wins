@@ -42,7 +42,7 @@ def load_unit_config(config_path: Path) -> Dict[str, UnitConfig]:
     return out
 
 
-def _normalize_tag(s: str) -> str:
+def _normalise_tag(s: str) -> str:
     return re.sub(r"\s+", " ", s.strip()).lower()
 
 
@@ -52,7 +52,7 @@ def _compile_alias_regex(aliases: Sequence[str]) -> List[Pattern[str]]:
         alias_clean = (alias or "").strip()
         if not alias_clean:
             continue
-        alias_norm = _normalize_tag(alias_clean)
+        alias_norm = _normalise_tag(alias_clean)
         patterns.append(re.compile(re.escape(alias_norm), flags=re.IGNORECASE))
     return patterns
 
@@ -77,7 +77,7 @@ def match_unit_from_tags(
     if not tokens:
         return None
 
-    tokens_norm = [_normalize_tag(t) for t in tokens]
+    tokens_norm = [_normalise_tag(t) for t in tokens]
 
     # Return first unit match (same behavior as before)
     for unit_name, patterns in alias_matchers:

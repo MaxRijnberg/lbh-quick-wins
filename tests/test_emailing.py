@@ -58,8 +58,6 @@ def test_send_email_with_xlsx_smtp_html_smoke(
         {
             "name": "Test Recipient",
             "unit_name": "TEST",
-            "file_name": "test_report.xlsx",
-            "row_count": len(sample_vulnerabilities_df),
             "sender_name": "Quick Wins Test Suite",
         },
     )
