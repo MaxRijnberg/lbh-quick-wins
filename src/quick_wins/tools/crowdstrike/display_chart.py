@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 
-def stacked_risk_by_unit(df: pd.DataFrame):
+def stacked_risk_by_unit(df: pd.DataFrame) -> None:
     levels = ["Critical", "High", "Medium", "Low", "Unknown"]
 
     # Optional: ensure numeric
