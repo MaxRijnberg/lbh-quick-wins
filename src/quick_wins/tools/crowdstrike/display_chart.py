@@ -50,7 +50,3 @@ def stacked_risk_by_unit(df: pd.DataFrame):
     )
 
     st.plotly_chart(fig, width="stretch")
-
-
-# In your app:
-# stacked_risk_by_unit(your_df)

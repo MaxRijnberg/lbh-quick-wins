@@ -2,12 +2,13 @@ import io
 import zipfile
 import pandas as pd
 
+from typing import Tuple
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 
 def read_first_csv_from_zip(
     uploaded_file: UploadedFile, encoding: str = "utf-8", **read_csv_kwargs
-):
+) -> Tuple[pd.DataFrame, str]:
     """
     Reads the first .csv file found inside an uploaded .zip and returns (df, csv_name).
 

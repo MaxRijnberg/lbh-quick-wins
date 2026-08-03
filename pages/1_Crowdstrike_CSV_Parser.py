@@ -70,7 +70,7 @@ if st.button("Email XLSX to managers (per unit)"):
     # Prepare data for email_units()
     unit_to_df = {u: df_inferred[df_inferred["unit"] == u].copy() for u in unit_names}
     unit_to_emails = {
-        u: unit_configs[u].emails for u in unit_names if u in unit_configs
+        u: unit_configs[u]["emails"] for u in unit_names if u in unit_configs
     }
 
     file_basename = os.path.splitext(os.path.basename(csv_name))[0]

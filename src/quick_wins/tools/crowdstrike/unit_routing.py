@@ -2,20 +2,19 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+
+import pandas as pd
+
 from typing import Dict, List, Optional, Pattern, Sequence, Tuple, TypedDict
+from pathlib import Path
 
 
 class EmailRecipient(TypedDict):
     email: str
     name: str
-from pathlib import Path
-
-import pandas as pd
 
 
-@dataclass(frozen=True)
-class UnitConfig:
+class UnitConfig(TypedDict):
     name: str
     aliases: List[str]
     domains: List[str]
@@ -63,7 +62,7 @@ def build_tag_alias_matchers(
 ) -> List[Tuple[str, List[Pattern[str]]]]:
     matchers: List[Tuple[str, List[Pattern[str]]]] = []
     for unit_name, uc in unit_configs.items():
-        matchers.append((unit_name, _compile_alias_regex(uc.aliases)))
+        matchers.append((unit_name, _compile_alias_regex(uc["aliases"])))
     return matchers
 
 
@@ -109,7 +108,7 @@ def match_unit_from_domains(
     best_len: int = -1
 
     for unit_name, uc in unit_configs.items():
-        for suffix in uc.domains:
+        for suffix in uc["domains"]:
             suf = (suffix or "").strip().lower()
             if not suf:
                 continue
@@ -143,7 +142,7 @@ def match_unit_from_hostname(
 
     # Build quick map each call is ok for small configs; if large, cache.
     for unit_name, uc in unit_configs.items():
-        if _normalize_abbreviation(uc.abbreviation) == prefix:
+        if _normalize_abbreviation(uc["abbreviation"]) == prefix:
             return unit_name
     return None
 

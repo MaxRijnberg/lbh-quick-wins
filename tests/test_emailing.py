@@ -14,8 +14,10 @@ Requires .streamlit/secrets.toml to hold working SMTP credentials.
 
 import pytest
 import streamlit as st
+import pandas as pd
 
-from typing import List, Dict
+from typing import List, TypedDict, Dict
+from pathlib import Path
 
 from quick_wins.tools.crowdstrike import df_to_xlsx_bytes, email_units
 from quick_wins.tools.crowdstrike.unit_routing import EmailRecipient
@@ -27,19 +29,28 @@ TEST_RECIPIENT: str = st.secrets["TEST_RECIPIENT"]
 pytestmark = pytest.mark.integration
 
 
-def _smtp_config() -> dict:
-    return dict(
-        smtp_host=st.secrets["SMTP_HOST"],
-        smtp_port=int(st.secrets["SMTP_PORT"]),
-        smtp_username=st.secrets["SMTP_USERNAME"],
-        smtp_password=st.secrets["SMTP_PASSWORD"],
-        mail_from=st.secrets["MAIL_FROM"],
-    )
+class SMTPConfig(TypedDict):
+    smtp_host: str
+    smtp_port: int
+    smtp_username: str
+    smtp_password: str
+    mail_from: str
+
+
+def _smtp_config() -> SMTPConfig:
+    returnval: SMTPConfig = {
+        "smtp_host": st.secrets["SMTP_HOST"],
+        "smtp_port": int(st.secrets["SMTP_PORT"]),
+        "smtp_username": st.secrets["SMTP_USERNAME"],
+        "smtp_password": st.secrets["SMTP_PASSWORD"],
+        "mail_from": st.secrets["MAIL_FROM"],
+    }
+    return returnval
 
 
 def test_send_email_with_xlsx_smtp_html_smoke(
-    sample_vulnerabilities_df, email_template_path
-):
+    sample_vulnerabilities_df: pd.DataFrame, email_template_path: Path
+) -> None:
     """Sends one email with an XLSX attachment directly, bypassing unit routing."""
     attachment_bytes = df_to_xlsx_bytes(sample_vulnerabilities_df, sheet_name="Data")
     body_html = render_template_html(
@@ -63,7 +74,9 @@ def test_send_email_with_xlsx_smtp_html_smoke(
     )
 
 
-def test_email_units_end_to_end(sample_vulnerabilities_df, email_template_path):
+def test_email_units_end_to_end(
+    sample_vulnerabilities_df: pd.DataFrame, email_template_path: Path
+) -> None:
     """Runs the same email_units() pipeline the Streamlit page calls, routed to the test address."""
     unit_to_df = {"TEST_UNIT": sample_vulnerabilities_df}
     unit_to_emails: Dict[str, List[EmailRecipient]] = {
