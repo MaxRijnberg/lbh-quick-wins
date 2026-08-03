@@ -10,6 +10,7 @@ import pandas as pd
 from quick_wins.tools.crowdstrike import df_to_xlsx_bytes
 from quick_wins.tools.crowdstrike.unit_routing import EmailRecipient
 from quick_wins.utils.html_render import render_template_html
+from quick_wins.config.crowdstike_config import COLS_TO_DROP
 
 
 def send_email_with_xlsx_smtp_html(
@@ -67,6 +68,8 @@ def email_units(
         recipients = unit_to_emails.get(unit_name, [])
         if not recipients:
             continue
+
+        df_unit = df_unit.drop(columns=COLS_TO_DROP)
 
         attachment_bytes = df_to_xlsx_bytes(df_unit, sheet_name="Data")
         filename = f"{file_basename}_{unit_name}.xlsx".replace("/", "-")
