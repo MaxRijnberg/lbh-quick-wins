@@ -73,7 +73,7 @@ def email_units(
 
         attachment_bytes = df_to_xlsx_bytes(df_unit, sheet_name="Data")
         filename = f"{file_basename}_{unit_name}.xlsx".replace("/", "-")
-        subject = f"Weekly report - {unit_name}"
+        subject = f"Weekly vulnerabilities report - {unit_name}"
 
         # Sent per-recipient (not combined into one "To" list) since each
         # recipient has their own {{name}} to personalize the body with.
