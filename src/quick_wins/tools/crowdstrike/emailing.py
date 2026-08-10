@@ -57,12 +57,12 @@ def email_units(
     file_basename: str,
     email_template_path: Path,
 ) -> None:
-    smtp_host = st.secrets["SMTP_HOST"]
-    smtp_port = int(st.secrets["SMTP_PORT"])
-    smtp_username = st.secrets["SMTP_USERNAME"]
-    smtp_password = st.secrets["SMTP_PASSWORD"]
-    mail_from = st.secrets["MAIL_FROM"]
-    sender_name = st.secrets.get("SENDER_NAME", "Automated Reports")
+    smtp_host: str = st.secrets["SMTP_HOST"]
+    smtp_port: int = int(st.secrets["SMTP_PORT"])
+    smtp_username: str = st.secrets["SMTP_USERNAME"]
+    smtp_password: str = st.secrets["SMTP_PASSWORD"]
+    mail_from: str = st.secrets["MAIL_FROM"]
+    sender_name: str = st.secrets.get("SENDER_NAME", "Automated Reports")
 
     for unit_name, df_unit in unit_to_df.items():
         recipients = unit_to_emails.get(unit_name, [])
@@ -76,7 +76,7 @@ def email_units(
         subject = f"Weekly vulnerabilities report - {unit_name}"
 
         # Sent per-recipient (not combined into one "To" list) since each
-        # recipient has their own {{name}} to personalize the body with.
+        # recipient has their own {{name}} to personalise the body with.
         for recipient in recipients:
             body_html = render_template_html(
                 email_template_path,

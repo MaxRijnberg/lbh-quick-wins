@@ -15,6 +15,9 @@ wheels/
 # Data
 data/
 
+# Logs
+logs/
+
 # Secrets
 .streamlit/secrets.toml
 

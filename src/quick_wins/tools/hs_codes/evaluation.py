@@ -1,0 +1,100 @@
+from pathlib import Path
+from typing import Dict, Iterable, Union
+
+import numpy as np
+import pandas as pd
+
+from quick_wins.tools.hs_codes.matching import (
+    match_cargo_to_hs,
+    match_cargo_to_hs_ensemble,
+    similarity_matrix,
+)
+from quick_wins.tools.hs_codes.text_cleaning import clean_text
+
+
+def load_eval_set(path: Union[Path, str]) -> pd.DataFrame:
+    df = pd.read_csv(path, dtype={"expected_hs_code": str})
+    df["commodityGroup_clean"] = df["commodityGroup"].fillna("").map(clean_text)
+    df["n_rows"] = 1
+    return df
+
+
+def score_eval_set(
+    eval_df: pd.DataFrame,
+    hs_df: pd.DataFrame,
+    eval_embeddings,
+    hs_embeddings,
+) -> pd.DataFrame:
+    sim_matrix = similarity_matrix(eval_embeddings, hs_embeddings)
+    predictions = match_cargo_to_hs(eval_df, hs_df, sim_matrix)
+    labels = eval_df[
+        ["cargo_text", "expected_hs_code", "label_confidence", "notes"]
+    ]
+    return predictions.merge(labels, on="cargo_text", how="left")
+
+
+def score_eval_set_ensemble(
+    eval_df: pd.DataFrame,
+    hs_df: pd.DataFrame,
+    eval_embeddings_by_model: Dict[str, np.ndarray],
+    hs_embeddings_by_model: Dict[str, np.ndarray],
+) -> pd.DataFrame:
+    sim_matrices = {
+        name: similarity_matrix(eval_embeddings_by_model[name], hs_embeddings_by_model[name])
+        for name in eval_embeddings_by_model
+    }
+    predictions = match_cargo_to_hs_ensemble(eval_df, hs_df, sim_matrices)
+    labels = eval_df[
+        ["cargo_text", "expected_hs_code", "label_confidence", "notes"]
+    ]
+    return predictions.merge(labels, on="cargo_text", how="left")
+
+
+def _labeled_with_correctness(scored_df: pd.DataFrame) -> pd.DataFrame:
+    labeled = scored_df[scored_df["expected_hs_code"].notna()].copy()
+    labeled["hs_code_1"] = labeled["hs_code_1"].astype(str)
+    labeled["correct"] = labeled["hs_code_1"] == labeled["expected_hs_code"]
+    return labeled
+
+
+def compute_accuracy(scored_df: pd.DataFrame) -> dict:
+    labeled = _labeled_with_correctness(scored_df)
+    high = labeled[labeled["confidence"] == "high"]
+    review = labeled[labeled["confidence"] == "needs_review"]
+    abstained = int(scored_df["expected_hs_code"].isna().sum())
+
+    return {
+        "n_labeled": len(labeled),
+        "n_abstained": abstained,
+        "overall_accuracy": labeled["correct"].mean() if len(labeled) else None,
+        "high_confidence_count": len(high),
+        "high_confidence_precision": high["correct"].mean() if len(high) else None,
+        "needs_review_count": len(review),
+        "needs_review_accuracy": review["correct"].mean() if len(review) else None,
+    }
+
+
+def sweep_thresholds(
+    scored_df: pd.DataFrame,
+    score_grid: Iterable[float],
+    margin_grid: Iterable[float],
+) -> pd.DataFrame:
+    labeled = _labeled_with_correctness(scored_df)
+
+    rows = []
+    for score_t in score_grid:
+        for margin_t in margin_grid:
+            is_high = (labeled["score_1"] >= score_t) & (
+                (labeled["score_1"] - labeled["score_2"]) >= margin_t
+            )
+            high = labeled[is_high]
+            rows.append(
+                {
+                    "score_threshold": score_t,
+                    "margin_threshold": margin_t,
+                    "n_high_confidence": len(high),
+                    "coverage": len(high) / len(labeled) if len(labeled) else 0.0,
+                    "precision": high["correct"].mean() if len(high) else None,
+                }
+            )
+    return pd.DataFrame(rows)
