@@ -5,15 +5,25 @@ import numpy as np
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 
-from quick_wins.config.hs_codes_config import DATA_DIR, EVAL_SET_PATH, QUERY_INSTRUCTION
+from quick_wins.config.hs_codes_config import (
+    DATA_DIR,
+    EMBEDDING_CACHE_DIR,
+    EVAL_SET_PATH,
+    HS_TEXT_VERSION,
+    QUERY_INSTRUCTION,
+)
 from quick_wins.tools.hs_codes import (
     import_hs_data,
     add_chapter_column,
+    build_hs_encoding_text,
     load_eval_set,
+    cached_encode,
     score_eval_set,
     compute_accuracy,
     sweep_thresholds,
 )
+from quick_wins.tools.hs_codes.matching import model_slug
+from quick_wins.tools.hs_codes.text_cleaning import to_encoding_text
 from quick_wins.utils.custom_errors import RunningError
 from quick_wins.utils.loggers import get_logger
 from quick_wins.utils.version_control import get_most_recent_version
@@ -21,7 +31,7 @@ from quick_wins.utils.version_control import get_most_recent_version
 NAME = "Evaluate mapping"
 
 SCORE_GRID = [round(x, 2) for x in np.arange(0.35, 0.75, 0.05)]
-MARGIN_GRID = [0.0, 0.02, 0.05, 0.08, 0.10]
+MARGIN_GRID = [0.0, 0.01, 0.02, 0.03, 0.05, 0.08, 0.10]
 
 
 def parse_args() -> argparse.Namespace:
@@ -64,14 +74,17 @@ def main(args: argparse.Namespace, logger: logging.Logger) -> None:
     logger.info(f"Loading embedding model {args.model}")
     model = SentenceTransformer(args.model)
 
-    logger.info(f"Encoding {len(hs_chaptered)} HS descriptions")
-    hs_embeddings = model.encode(
-        hs_chaptered["description"].fillna("").to_numpy(),
+    hs_cache_path = EMBEDDING_CACHE_DIR / f"hs_{model_slug(args.model)}_{HS_TEXT_VERSION}.npy"
+    logger.info(f"Encoding/loading {len(hs_chaptered)} HS descriptions (cache: {hs_cache_path})")
+    hs_embeddings = cached_encode(
+        model,
+        build_hs_encoding_text(hs_chaptered),
+        hs_cache_path,
         convert_to_numpy=True,
         show_progress_bar=True,
     )
     logger.info(f"Encoding {len(eval_df)} eval cargo descriptions")
-    query_texts = [QUERY_INSTRUCTION + t for t in eval_df["cargo_text"]]
+    query_texts = [QUERY_INSTRUCTION + to_encoding_text(t) for t in eval_df["cargo_text"]]
     eval_embeddings = model.encode(
         query_texts, convert_to_numpy=True, show_progress_bar=True
     )
@@ -85,7 +98,7 @@ def main(args: argparse.Namespace, logger: logging.Logger) -> None:
         f"on {accuracy['n_labeled']} labeled rows ({accuracy['n_abstained']} abstained rows excluded)"
     )
 
-    logger.info(f"Sweeping {len(SCORE_GRID)}x{len(MARGIN_GRID)} threshold combinations")
+    logger.info(f"Sweeping {len(SCORE_GRID)}x{len(MARGIN_GRID)} score/margin combinations")
     sweep_df = sweep_thresholds(scored_df, SCORE_GRID, MARGIN_GRID)
     scored_sweep = sweep_df[sweep_df["precision"].notna()].sort_values(
         ["precision", "coverage"], ascending=[False, False]

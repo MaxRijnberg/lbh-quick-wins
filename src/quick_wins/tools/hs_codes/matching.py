@@ -1,16 +1,58 @@
 import re
-from typing import Dict
 
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import normalize
+from typing import cast
 
-from quick_wins.config.hs_codes_config import HIGH_CONF_SCORE, MIN_MARGIN
+from quick_wins.config.hs_codes_config import (
+    DDGS_HS_CODE,
+    HIGH_CONF_SCORE,
+    KEYWORD_HS_OVERRIDES,
+    KEYWORD_OVERRIDE_EXCLUSION_PATTERN,
+    MIN_MARGIN,
+    NON_SPECIFIC_CARGO_TERMS,
+)
 from quick_wins.tools.hs_codes.category_mapping import candidate_mask
 
 
 def model_slug(model_name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", model_name.lower()).strip("_")
+
+
+_NON_ALNUM_SPACE = re.compile(r"[^a-z0-9 ]")
+
+
+def is_non_specific_cargo(name: str) -> bool:
+    normalized = _NON_ALNUM_SPACE.sub("", str(name).lower())
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return normalized in NON_SPECIFIC_CARGO_TERMS
+
+
+_KEYWORD_OVERRIDE_PATTERN = re.compile(
+    r"\b("
+    + "|".join(
+        re.escape(k) for k in sorted(KEYWORD_HS_OVERRIDES, key=len, reverse=True)
+    )
+    + r")\b",
+    re.IGNORECASE,
+)
+
+_DDGS_PATTERN = re.compile(r"\bdistillers dried grains with solubles\b", re.IGNORECASE)
+
+_OVERRIDE_EXCLUSION_PATTERN = re.compile(
+    KEYWORD_OVERRIDE_EXCLUSION_PATTERN, re.IGNORECASE
+)
+
+
+def keyword_override(cargo_text: str) -> str | None:
+    text = str(cargo_text)
+    if _DDGS_PATTERN.search(text):
+        return DDGS_HS_CODE
+    if _OVERRIDE_EXCLUSION_PATTERN.search(text):
+        return None
+    match = _KEYWORD_OVERRIDE_PATTERN.search(text)
+    return KEYWORD_HS_OVERRIDES[match.group(0).upper()] if match else None
 
 
 def similarity_matrix(
@@ -23,83 +65,71 @@ def match_cargo_to_hs(
     cargo_df: pd.DataFrame,
     hs_df: pd.DataFrame,
     sim_matrix: np.ndarray,
-    top_k: int = 3,
 ) -> pd.DataFrame:
+    desc_by_code = dict(
+        zip(hs_df["hscode"].astype(str).str.zfill(6), hs_df["description"])
+    )
+
     rows = []
     for i, row in enumerate(cargo_df.itertuples()):
+        # Checked before any embedding similarity - see KEYWORD_HS_OVERRIDES
+        # for why (a small, deliberately curated set of terms where semantic
+        # search kept losing to a false attractor no matter how the HS
+        # description text was phrased).
+        override_code = keyword_override(cast(str, row.cargo_text))
+        if override_code is not None:
+            rows.append(
+                {
+                    "name": row.name,
+                    "commodityGroup": row.commodityGroup,
+                    "cargo_text": row.cargo_text,
+                    "n_rows": row.n_rows,
+                    "hs_code_1": override_code,
+                    "hs_desc_1": desc_by_code.get(override_code, ""),
+                    "score_1": 1.0,
+                    "score_2": 0.0,
+                    "restricted_to_category": False,
+                    "confidence": "high",
+                    "keyword_override": True,
+                }
+            )
+            continue
+
         commodity_group = str(row.commodityGroup_clean)
         mask = candidate_mask(hs_df, commodity_group)
         restricted = bool(mask.any() and mask.sum() < len(hs_df))
         sims = np.where(mask, sim_matrix[i], -1.0) if mask.any() else sim_matrix[i]
 
-        top_idx = np.argsort(sims)[-top_k:][::-1]
-        top1, top2 = sims[top_idx[0]], sims[top_idx[1]]
+        # Top-2, not just top-1: a lone score threshold can't tell a clear
+        # winner from a coin-flip tie (e.g. "Coal" scored anthracite and
+        # bituminous within 0.0003 of each other) - the margin between the
+        # top two candidates is what actually signals real confidence.
+        top_idx = np.argsort(sims)[-2:][::-1]
+        score_1, score_2 = sims[top_idx[0]], sims[top_idx[1]]
         confidence = (
             "high"
-            if (top1 >= HIGH_CONF_SCORE and (top1 - top2) >= MIN_MARGIN)
+            if (score_1 >= HIGH_CONF_SCORE and (score_1 - score_2) >= MIN_MARGIN)
             else "needs_review"
         )
+        # Shipment-admin placeholders ("General Cargo", "multiple parcel's")
+        # carry no real commodity signal, so a "high" score against them is
+        # a coincidence, not a real match - see NON_SPECIFIC_CARGO_TERMS.
+        if confidence == "high" and is_non_specific_cargo(cast(str, row.name)):
+            confidence = "needs_review"
 
         rows.append(
             {
+                "name": row.name,
+                "commodityGroup": row.commodityGroup,
                 "cargo_text": row.cargo_text,
                 "n_rows": row.n_rows,
                 "hs_code_1": hs_df.iloc[top_idx[0]]["hscode"],
                 "hs_desc_1": hs_df.iloc[top_idx[0]]["description"],
-                "score_1": top1,
-                "hs_code_2": hs_df.iloc[top_idx[1]]["hscode"],
-                "hs_desc_2": hs_df.iloc[top_idx[1]]["description"],
-                "score_2": top2,
+                "score_1": score_1,
+                "score_2": score_2,
                 "restricted_to_category": restricted,
                 "confidence": confidence,
+                "keyword_override": False,
             }
         )
-    return pd.DataFrame(rows)
-
-
-def match_cargo_to_hs_ensemble(
-    cargo_df: pd.DataFrame,
-    hs_df: pd.DataFrame,
-    sim_matrices: Dict[str, np.ndarray],
-    top_k: int = 3,
-) -> pd.DataFrame:
-    """A cargo description is "high" confidence only if every model's
-    top-1 HS code agrees - agreement across independently-trained models
-    is a stronger signal than any single model's own similarity score."""
-    model_names = list(sim_matrices.keys())
-    rows = []
-    for i, row in enumerate(cargo_df.itertuples()):
-        commodity_group = str(row.commodityGroup_clean)
-        mask = candidate_mask(hs_df, commodity_group)
-        restricted = bool(mask.any() and mask.sum() < len(hs_df))
-
-        per_model = {}
-        for name in model_names:
-            sims = sim_matrices[name][i]
-            sims = np.where(mask, sims, -1.0) if mask.any() else sims
-            top_idx = np.argsort(sims)[-top_k:][::-1]
-            per_model[name] = {
-                "hs_code": hs_df.iloc[top_idx[0]]["hscode"],
-                "hs_desc": hs_df.iloc[top_idx[0]]["description"],
-                "score": float(sims[top_idx[0]]),
-            }
-
-        codes = {per_model[name]["hs_code"] for name in model_names}
-        agreement = len(codes) == 1
-        primary = model_names[0]
-
-        result = {
-            "cargo_text": row.cargo_text,
-            "n_rows": row.n_rows,
-            "hs_code_1": per_model[primary]["hs_code"],
-            "hs_desc_1": per_model[primary]["hs_desc"],
-            "restricted_to_category": restricted,
-            "agreement": agreement,
-            "confidence": "high" if agreement else "needs_review",
-        }
-        for name in model_names:
-            key = model_slug(name)
-            result[f"hs_code_{key}"] = per_model[name]["hs_code"]
-            result[f"score_{key}"] = per_model[name]["score"]
-        rows.append(result)
     return pd.DataFrame(rows)
