@@ -10,6 +10,10 @@ from quick_wins.tools.crowdstrike import (
     assign_unit_column,
     email_units,
     stacked_risk_by_unit,
+    vulnerability_trendline,
+    aggregate_critical_high_by_unit,
+    append_to_history,
+    load_history,
 )
 
 CONFIG_DIR = (
@@ -29,6 +33,24 @@ def _load_unit_config_cached():
 st.set_page_config(page_title="Crowdstrike Vulnerabilities CSV", layout="wide")
 
 st.title("Automatic emailing of Crowdstrike Vulnerabilities")
+
+# --- Trendline of Critical + High vulnerabilities per unit over time ---
+# Independent of the uploader below - viewable any time from prior history.
+if "show_crowdstrike_trendline" not in st.session_state:
+    st.session_state["show_crowdstrike_trendline"] = False
+
+if st.toggle("View vulnerability trendline (per country)"):
+    st.session_state["show_crowdstrike_trendline"] = True
+
+if st.session_state["show_crowdstrike_trendline"]:
+    trend_history = load_history()
+    available_units = sorted(trend_history["unit"].unique()) if not trend_history.empty else []
+    selected_units = st.multiselect(
+        "Countries to show",
+        options=available_units,
+        default=available_units,
+    )
+    vulnerability_trendline(trend_history, selected_units=selected_units)
 
 uploaded = st.file_uploader("Upload CrowdstrikeVulnerabilities.csv.zip", type=["zip"])
 
@@ -52,6 +74,19 @@ st.write(f"Rows with no country/unit inferred: {len(df_unknown)}")
 # Optional quick overview chart
 if len(df_inferred) > 0:
     stacked_risk_by_unit(df_inferred)
+
+# --- Append aggregated Critical/High counts per unit to history CSV ---
+# Streamlit reruns this whole script on every widget interaction, so guard
+# on the upload's file_id to avoid re-appending the same data on every rerun
+# (e.g. toggling "Preview errors" or clicking the email/trendline buttons).
+if len(df_inferred) > 0:
+    if st.session_state.get("crowdstrike_history_file_id") != uploaded.file_id:
+        history_agg = aggregate_critical_high_by_unit(df_inferred)
+        append_to_history(history_agg)
+        st.session_state["crowdstrike_history_file_id"] = uploaded.file_id
+        st.success(f"Appended {len(history_agg)} unit rows to vulnerability history.")
+    else:
+        st.caption("This upload was already recorded in the vulnerability history.")
 
 # --- Preview unknown first (as requested) ---
 st.subheader("Preview: rows with NO unit inferred (errors)")

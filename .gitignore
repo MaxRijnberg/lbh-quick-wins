@@ -21,5 +21,8 @@ logs/
 # Secrets
 .streamlit/secrets.toml
 
+# Per-machine Docker Compose overrides (e.g. CROWDSTRIKE_HISTORY_DIR)
+.env
+
 # Config with email addresses
 src/quick_wins/config/crowdstrike_config.json

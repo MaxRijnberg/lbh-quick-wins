@@ -6,4 +6,11 @@ services:
     volumes:
       - ./.streamlit/secrets.toml:/app/.streamlit/secrets.toml:ro
       - ./src/quick_wins/config/crowdstrike_config.json:/app/src/quick_wins/config/crowdstrike_config.json:ro
+      - ./data:/app/data
+      # Overlays the crowdstrike subfolder (history CSV + historical zips) with
+      # a SharePoint-synced OneDrive folder so all colleagues share one history
+      # CSV, instead of each local Docker instance keeping its own. Falls back
+      # to the plain local folder if CROWDSTRIKE_HISTORY_DIR isn't set - see
+      # .env.example.
+      - ${CROWDSTRIKE_HISTORY_DIR:-./data/crowdstike}:/app/data/crowdstike
     restart: unless-stopped
