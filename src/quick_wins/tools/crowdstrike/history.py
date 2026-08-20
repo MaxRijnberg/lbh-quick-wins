@@ -4,7 +4,7 @@ import pandas as pd
 
 from pathlib import Path
 
-from quick_wins.config.crowdstike_config import HISTORY_PATH
+from quick_wins.config.crowdstrike_config import HISTORY_PATH
 
 HISTORY_COLUMNS = ["upload_date", "unit", "critical", "high"]
 
